@@ -12,6 +12,7 @@ interface SettingsPageProps {
   onCreateTheme: (name: string, description: string) => void;
   onArchiveTheme: (themeId: string) => void;
   onExport: () => void;
+  onLogout: () => void;
 }
 
 interface OpenRouterModel {
@@ -60,6 +61,7 @@ export default function SettingsPage({
   onCreateTheme,
   onArchiveTheme,
   onExport,
+  onLogout,
 }: SettingsPageProps) {
   const [newThemeName, setNewThemeName] = useState('');
   const [newThemeDesc, setNewThemeDesc] = useState('');
@@ -68,6 +70,11 @@ export default function SettingsPage({
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [modelFetchError, setModelFetchError] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState('');
+  const [securityUsername, setSecurityUsername] = useState(settings.username);
+  const [securityPassword, setSecurityPassword] = useState('');
+  const [securityConfirmPassword, setSecurityConfirmPassword] = useState('');
+  const [securityMessage, setSecurityMessage] = useState<string | null>(null);
+  const [securityMessageType, setSecurityMessageType] = useState<'success' | 'error'>('success');
 
   const fetchModels = async () => {
     setIsFetchingModels(true);
@@ -112,6 +119,53 @@ export default function SettingsPage({
     onCreateTheme(newThemeName.trim(), newThemeDesc.trim());
     setNewThemeName('');
     setNewThemeDesc('');
+  };
+
+  const handleSaveSecurity = async () => {
+    setSecurityMessage(null);
+    if (!securityUsername.trim()) {
+      setSecurityMessage('Username is required.');
+      setSecurityMessageType('error');
+      return;
+    }
+    if (securityPassword.length < 4) {
+      setSecurityMessage('Password must be at least 4 characters.');
+      setSecurityMessageType('error');
+      return;
+    }
+    if (securityPassword !== securityConfirmPassword) {
+      setSecurityMessage('Passwords do not match.');
+      setSecurityMessageType('error');
+      return;
+    }
+    const msgBuffer = new TextEncoder().encode(securityPassword);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    onSettingsChange({
+      ...settings,
+      loginRequired: true,
+      username: securityUsername.trim(),
+      passwordHash: hash,
+    });
+    setSecurityPassword('');
+    setSecurityConfirmPassword('');
+    setSecurityMessage('Credentials saved. Login is now required.');
+    setSecurityMessageType('success');
+  };
+
+  const handleDisableLogin = () => {
+    onSettingsChange({
+      ...settings,
+      loginRequired: false,
+      username: '',
+      passwordHash: '',
+    });
+    setSecurityUsername('');
+    setSecurityPassword('');
+    setSecurityConfirmPassword('');
+    setSecurityMessage('Login requirement disabled.');
+    setSecurityMessageType('success');
   };
 
   return (
@@ -323,6 +377,111 @@ export default function SettingsPage({
             />
             <span>Automatically save session progress</span>
           </label>
+        </section>
+
+        {/* User Access Security */}
+        <section style={styles.section}>
+          <h3 style={styles.sectionTitle}>User Access Security</h3>
+          <p style={styles.sectionDesc}>
+            Require a username and password to access the app. Credentials are hashed
+            with SHA-256 and stored only in your browser.
+          </p>
+
+          {settings.loginRequired ? (
+            <div>
+              <div style={styles.securityStatus}>
+                <span style={styles.securityStatusDot} />
+                <span style={styles.securityStatusText}>
+                  Login required · User: <strong>{settings.username}</strong>
+                </span>
+              </div>
+              <div style={styles.securityActions}>
+                <button
+                  style={styles.securitySecondaryButton}
+                  onClick={handleDisableLogin}
+                >
+                  Disable Login
+                </button>
+                <button
+                  style={styles.securitySecondaryButton}
+                  onClick={onLogout}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={styles.securityStatus}>
+                <span style={{ ...styles.securityStatusDot, background: 'var(--n500)' }} />
+                <span style={styles.securityStatusText}>No login required</span>
+              </div>
+
+              <div style={styles.securityForm}>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Username</label>
+                  <input
+                    style={styles.input}
+                    type="text"
+                    value={securityUsername}
+                    onChange={(e) => setSecurityUsername(e.target.value)}
+                    placeholder="Choose a username"
+                    autoComplete="off"
+                  />
+                </div>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Password</label>
+                  <input
+                    style={styles.input}
+                    type="password"
+                    value={securityPassword}
+                    onChange={(e) => setSecurityPassword(e.target.value)}
+                    placeholder="At least 4 characters"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.fieldLabel}>Confirm Password</label>
+                  <input
+                    style={styles.input}
+                    type="password"
+                    value={securityConfirmPassword}
+                    onChange={(e) => setSecurityConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+
+              {securityMessage && (
+                <div
+                  style={{
+                    ...styles.securityMessage,
+                    ...(securityMessageType === 'error' ? styles.securityMessageError : {}),
+                  }}
+                >
+                  {securityMessage}
+                </div>
+              )}
+
+              <button
+                style={{
+                  ...styles.createButton,
+                  ...(!securityUsername.trim() || securityPassword.length < 4 || securityPassword !== securityConfirmPassword
+                    ? styles.buttonDisabled
+                    : {}),
+                }}
+                onClick={handleSaveSecurity}
+                disabled={
+                  !securityUsername.trim() ||
+                  securityPassword.length < 4 ||
+                  securityPassword !== securityConfirmPassword
+                }
+              >
+                Enable Login
+              </button>
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -595,5 +754,57 @@ const styles: Record<string, React.CSSProperties> = {
     height: 16,
     accentColor: 'var(--accent)',
     cursor: 'pointer',
+  },
+  securityStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '12px 0',
+    marginBottom: 12,
+  },
+  securityStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: 'var(--accent)',
+    flexShrink: 0,
+  },
+  securityStatusText: {
+    fontSize: 14,
+    color: 'var(--n1100)',
+  },
+  securityActions: {
+    display: 'flex',
+    gap: 10,
+    marginBottom: 16,
+  },
+  securitySecondaryButton: {
+    padding: '8px 16px',
+    background: 'transparent',
+    color: 'var(--n800)',
+    border: '1px solid var(--n400)',
+    borderRadius: 'var(--radius-sm)',
+    fontFamily: 'var(--sans)',
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  securityForm: {
+    marginTop: 16,
+  },
+  securityMessage: {
+    padding: '10px 14px',
+    background: 'var(--g100)',
+    border: '1px solid var(--g300)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--g600)',
+    fontFamily: 'var(--mono)',
+    fontSize: 12,
+    lineHeight: 1.4,
+    marginBottom: 16,
+  },
+  securityMessageError: {
+    background: 'var(--r100)',
+    border: '1px solid var(--r300)',
+    color: 'var(--r600)',
   },
 };

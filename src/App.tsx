@@ -1,9 +1,9 @@
 // ============================================================
-// App — Root component with routing and state management
+// App — Root component with routing, auth, and state management
 // ============================================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import TopBar from './components/TopBar';
 import DashboardPage from './pages/DashboardPage';
 import LibraryPage from './pages/LibraryPage';
@@ -11,6 +11,7 @@ import SettingsPage from './pages/SettingsPage';
 import SimulationEditorPage from './pages/SimulationEditorPage';
 import MultiFuturesPage from './pages/MultiFuturesPage';
 import SystemMapPage from './pages/SystemMapPage';
+import LoginPage from './pages/LoginPage';
 import type { Theme, Simulation, AppSettings } from './types';
 
 function generateId(): string {
@@ -27,6 +28,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   helpLanguage: 'en',
   autosaveEnabled: false,
+  loginRequired: false,
+  username: '',
+  passwordHash: '',
 };
 
 const DEV_THEME: Theme = {
@@ -113,6 +117,7 @@ const DEV_SIMULATION: Simulation = {
 const LS_THEMES = 'cld-themes';
 const LS_SIMULATIONS = 'cld-simulations';
 const LS_SETTINGS = 'cld-settings';
+const LS_AUTH_SESSION = 'cld-auth-session';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
@@ -129,15 +134,31 @@ function sanitizeSettingsForStorage(s: AppSettings): AppSettings {
   return {
     ...s,
     openRouterApiKey: s.openRouterApiKey ? '[PRESERVED_IN_SESSION]' : '',
+    passwordHash: s.passwordHash ? '[PRESERVED]' : '',
   };
 }
 
-/** Restores API key from in-memory version if the stored copy is redacted */
-function restoreApiKey(stored: AppSettings, memory: AppSettings): AppSettings {
+/** Restores API key and password hash from in-memory version if the stored copy is redacted */
+function restoreSecrets(stored: AppSettings, memory: AppSettings): AppSettings {
+  const result = { ...stored };
   if (stored.openRouterApiKey === '[PRESERVED_IN_SESSION]') {
-    return { ...stored, openRouterApiKey: memory.openRouterApiKey };
+    result.openRouterApiKey = memory.openRouterApiKey;
   }
-  return stored;
+  if (stored.passwordHash === '[PRESERVED]') {
+    result.passwordHash = memory.passwordHash;
+  }
+  return result;
+}
+
+// ===========================================================
+// SHA-256 helper (subtle crypto, no external deps)
+// ===========================================================
+
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export default function App() {
@@ -152,8 +173,14 @@ export default function App() {
   });
   const [settings, setSettings] = useState<AppSettings>(() => {
     const stored = loadFromStorage<AppSettings>(LS_SETTINGS, DEFAULT_SETTINGS);
-    return restoreApiKey(stored, DEFAULT_SETTINGS);
+    return restoreSecrets(stored, DEFAULT_SETTINGS);
   });
+
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return loadFromStorage<boolean>(LS_AUTH_SESSION, false);
+  });
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Keep a ref to settings so the autosave effect always reads the latest autosaveEnabled
   const settingsRef = useRef(settings);
@@ -170,6 +197,37 @@ export default function App() {
       localStorage.setItem(LS_SETTINGS, JSON.stringify(sanitizeSettingsForStorage(settings)));
     } catch { /* quota exceeded — non-critical */ }
   }, [themes, simulations, settings]);
+
+  // ---- Auth handlers ----
+
+  const handleLogin = useCallback(async (username: string, password: string) => {
+    setAuthError(null);
+    if (!settings.loginRequired) {
+      setIsAuthenticated(true);
+      localStorage.setItem(LS_AUTH_SESSION, 'true');
+      return;
+    }
+    if (username !== settings.username) {
+      setAuthError('Invalid username or password');
+      return;
+    }
+    const hash = await sha256(password);
+    if (hash !== settings.passwordHash) {
+      setAuthError('Invalid username or password');
+      return;
+    }
+    setIsAuthenticated(true);
+    localStorage.setItem(LS_AUTH_SESSION, 'true');
+  }, [settings]);
+
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    localStorage.removeItem(LS_AUTH_SESSION);
+    setAuthError(null);
+  }, []);
+
+  // ---- Decide if login is required ----
+  const needsLogin = settings.loginRequired && !isAuthenticated;
 
   // ---- Handlers ----
 
@@ -220,8 +278,12 @@ export default function App() {
 
   const handleSettingsChange = useCallback((newSettings: AppSettings) => {
     setSettings((prev) => {
-      // Preserve API key in memory — the stored copy is redacted
-      return { ...newSettings, openRouterApiKey: newSettings.openRouterApiKey || prev.openRouterApiKey };
+      // Preserve secrets in memory — the stored copy is redacted
+      return {
+        ...newSettings,
+        openRouterApiKey: newSettings.openRouterApiKey || prev.openRouterApiKey,
+        passwordHash: newSettings.passwordHash || prev.passwordHash,
+      };
     });
   }, []);
 
@@ -233,6 +295,7 @@ export default function App() {
       settings: {
         ...settings,
         openRouterApiKey: '[REDACTED]',
+        passwordHash: '[REDACTED]',
       },
     };
 
@@ -249,75 +312,86 @@ export default function App() {
   return (
     <BrowserRouter>
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <TopBar
-          themes={themes.filter((t) => t.active)}
-          activeThemeId={activeThemeId}
-          onThemeChange={handleThemeChange}
-          onCreateTheme={handleCreateTheme}
-        />
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <DashboardPage
-                  activeThemeId={activeThemeId}
-                  simulations={simulations}
-                  onSaveSimulation={handleSaveSimulation}
-                />
-              }
+        {needsLogin ? (
+          <LoginPage
+            onLogin={handleLogin}
+            error={authError}
+          />
+        ) : (
+          <>
+            <TopBar
+              themes={themes.filter((t) => t.active)}
+              activeThemeId={activeThemeId}
+              onThemeChange={handleThemeChange}
+              onCreateTheme={handleCreateTheme}
             />
-            <Route
-              path="/library"
-              element={
-                <LibraryPage
-                  activeThemeId={activeThemeId}
-                  simulations={simulations}
-                  onPromoteSimulation={handlePromoteSimulation}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <DashboardPage
+                      activeThemeId={activeThemeId}
+                      simulations={simulations}
+                      onSaveSimulation={handleSaveSimulation}
+                    />
+                  }
                 />
-              }
-            />
-            <Route
-              path="/editor/:simulationId"
-              element={
-                <SimulationEditorPage
-                  simulations={simulations}
-                  onUpdateSimulation={handleUpdateSimulation}
+                <Route
+                  path="/library"
+                  element={
+                    <LibraryPage
+                      activeThemeId={activeThemeId}
+                      simulations={simulations}
+                      onPromoteSimulation={handlePromoteSimulation}
+                    />
+                  }
                 />
-              }
-            />
-            <Route
-              path="/multi-futures"
-              element={
-                <MultiFuturesPage
-                  simulations={simulations}
+                <Route
+                  path="/editor/:simulationId"
+                  element={
+                    <SimulationEditorPage
+                      simulations={simulations}
+                      onUpdateSimulation={handleUpdateSimulation}
+                    />
+                  }
                 />
-              }
-            />
-            <Route
-              path="/system-map"
-              element={
-                <SystemMapPage
-                  activeThemeId={activeThemeId}
-                  simulations={simulations}
+                <Route
+                  path="/multi-futures"
+                  element={
+                    <MultiFuturesPage
+                      simulations={simulations}
+                    />
+                  }
                 />
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <SettingsPage
-                  settings={settings}
-                  onSettingsChange={handleSettingsChange}
-                  themes={themes}
-                  onCreateTheme={handleCreateTheme}
-                  onArchiveTheme={handleArchiveTheme}
-                  onExport={handleExport}
+                <Route
+                  path="/system-map"
+                  element={
+                    <SystemMapPage
+                      activeThemeId={activeThemeId}
+                      simulations={simulations}
+                    />
+                  }
                 />
-              }
-            />
-          </Routes>
-        </div>
+                <Route
+                  path="/settings"
+                  element={
+                    <SettingsPage
+                      settings={settings}
+                      onSettingsChange={handleSettingsChange}
+                      themes={themes}
+                      onCreateTheme={handleCreateTheme}
+                      onArchiveTheme={handleArchiveTheme}
+                      onExport={handleExport}
+                      onLogout={handleLogout}
+                    />
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
+          </>
+        )}
       </div>
     </BrowserRouter>
   );

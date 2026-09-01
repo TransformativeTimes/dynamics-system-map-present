@@ -112,4 +112,8 @@ export interface AppSettings {
   };
   helpLanguage: 'en' | 'pt';
   autosaveEnabled: boolean;
+  /** User Access Security */
+  loginRequired: boolean;
+  username: string;
+  passwordHash: string;
 }
