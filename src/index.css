@@ -1,0 +1,284 @@
+/* ============================================================
+   Transformative Times — Causal Loop Dynamics
+   Design tokens + ambient system from TT AI Style Guide
+   (styles.scss + tt-styling-guide.html)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=IBM+Plex+Mono:ital,wght@0,100..700;1,100..700&display=swap');
+
+:root {
+  /* ---- Neutrals ---- */
+  --n100: #171717; --n200: #26282A; --n300: #353A3D; --n400: #464D52;
+  --n500: #59636B; --n600: #6A747C; --n700: #7C868E; --n800: #969EA5;
+  --n900: #ADB3B9; --n1000: #C4CACE; --n1100: #DCE0E3; --n1200: #F5F7F9;
+
+  /* ---- Green (accent) ---- */
+  --g100: #202B26; --g200: #314F41; --g300: #42745B; --g400: #539774;
+  --g500: #61B58A; --g600: #6FD4A0; --g700: #76E3AB; --g800: #9FF2C8;
+  --g900: #C1FFE1; --g1000: #CFFFE8; --g1100: #E2FFF1; --g1200: #F5FFFA;
+
+  /* ---- Purple ---- */
+  --p100: #22202B; --p200: #34304C; --p300: #463F6E; --p400: #584F8F;
+  --p500: #6A5FB1; --p600: #7C6ED2; --p700: #8576E3; --p800: #A499EB;
+  --p900: #B9B0F0; --p1000: #CEC7F5; --p1100: #E2DFFA; --p1200: #F7F6FF;
+
+  /* ---- Blue ---- */
+  --b100: #1C282E; --b200: #254354; --b300: #2E5F7A; --b400: #377AA0;
+  --b500: #4096C6; --b600: #49B1EC; --b700: #4DBFFF; --b800: #7ACFFF;
+  --b900: #98DAFF; --b1000: #B7E5FF; --b1100: #D5F0FF; --b1200: #F3FBFF;
+
+  /* ---- Yellow ---- */
+  --y100: #383827; --y200: #5B5A38; --y300: #7D7C48; --y400: #A09D59;
+  --y500: #C2BF69; --y600: #E5E17A; --y700: #F6F282; --y800: #F8F59F;
+  --y900: #F9F7B3; --y1000: #FAF9C7; --y1100: #FCFBDA; --y1200: #FDFDEE;
+
+  /* ---- Orange ---- */
+  --o100: #3A2E26; --o200: #5E4635; --o300: #825E45; --o400: #A57554;
+  --o500: #C98D63; --o600: #EDA572; --o700: #FFB17A; --o800: #FFC49B;
+  --o900: #FFD1B1; --o1000: #FFDEC7; --o1100: #FFEBDD; --o1200: #FFF8F3;
+
+  /* ---- Red (friction / failed state only) ---- */
+  --r100: #3A2525; --r200: #5E3434; --r300: #824343; --r400: #A55252;
+  --r500: #C96161; --r600: #ED7070; --r700: #FF7777; --r800: #FF9999;
+  --r900: #FFB0B0; --r1000: #FFC7C7; --r1100: #FFDEDE; --r1200: #FFF5F5;
+
+  /* ---- Semantic ---- */
+  --bg: #0E0F0F;
+  --surface: linear-gradient(180deg, #161717, #131414);
+  --surface-glass: rgba(22, 23, 23, 0.62);
+  --border: var(--n200);
+  --text-primary: var(--n1200);
+  --text-body: var(--n900);
+  --text-muted: var(--n700);
+  --accent: var(--g600);
+  --accent-bright: var(--g700);
+  --accent-dim: var(--g300);
+  --danger: var(--r600);
+
+  /* ---- Typography ---- */
+  --sans: 'Work Sans', system-ui, sans-serif;
+  --serif: 'EB Garamond', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --glow: 0 0 10px rgba(255, 255, 255, 0.5);
+  --glow-strong: 0 0 18px rgba(255, 255, 255, 0.6);
+  --glow-accent: 0 0 16px rgba(111, 212, 160, 0.45);
+  --grid-size: 26px;
+
+  /* ---- Spacing ---- */
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+@keyframes ambientDrift {
+  0%   { background-position: 100% 0%, 0% 100%, 0 0; }
+  50%  { background-position: 100% 100%, 100% 0%, 0 0; }
+  100% { background-position: 0% 100%, 0% 0%, 0 0; }
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    /* single soft green light source, top-right (style guide: "corner glow") */
+    radial-gradient(120% 90% at 88% 4%, rgba(48, 84, 66, 0.52) 0%, rgba(14, 15, 15, 0) 55%),
+    /* faint counter-light, bottom-left, keeps depth */
+    radial-gradient(100% 80% at 6% 100%, rgba(34, 32, 43, 0.4) 0%, rgba(14, 15, 15, 0) 52%),
+    /* measured dotted grid */
+    radial-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 0);
+  background-size: auto, auto, var(--grid-size) var(--grid-size);
+  background-attachment: fixed;
+  color: var(--text-body);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--g300);
+  color: #fff;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--n400);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--n500);
+  background-clip: padding-box;
+}
+
+/* ---- Typography utilities ---- */
+.serif { font-family: var(--serif); }
+.mono { font-family: var(--mono); }
+.glow { text-shadow: var(--glow); }
+
+/* ---- Focus ring (glassy) ---- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(111, 212, 160, 0.14);
+}
+
+/* ============================================================
+   Global control polish — glows, transparencies, transitions
+   (applies where inline styles leave room)
+   ============================================================ */
+
+button {
+  transition: filter 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease,
+    opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+select, input, textarea {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+select:focus, input:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(111, 212, 160, 0.14);
+}
+
+/* glassy transparent surface — style guide "panel + transparency" */
+.glass {
+  background: var(--surface-glass) !important;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.38) !important;
+}
+
+/* category-style left edge accent (solid edge, tinted fill) */
+.hue-edge {
+  position: relative;
+}
+.hue-edge::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+}
+
+/* subtle pulse used by live/active indicators */
+@keyframes breathe {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+.breathe { animation: breathe 2.6s ease-in-out infinite; }
+
+/* causal-loop variable node hover glow */
+.cld-node:hover {
+  border-color: rgba(111, 212, 160, 0.55) !important;
+  box-shadow: 0 0 20px rgba(111, 212, 160, 0.22), 0 8px 28px rgba(0, 0, 0, 0.5) !important;
+  filter: brightness(1.04);
+}
+.cld-node:active {
+  cursor: grabbing;
+}
+
+/* nav link hover underline accent */
+a {
+  transition: color 0.15s ease;
+}
+
+/* ============================================================
+   React Flow overrides — transparent, glowy, on-theme
+   ============================================================ */
+
+.react-flow__background {
+  background: transparent !important;
+}
+
+.react-flow__controls {
+  background: var(--surface-glass) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4) !important;
+}
+.react-flow__controls-button {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  fill: var(--n900) !important;
+  width: 28px !important;
+  height: 28px !important;
+  transition: background 0.15s ease, fill 0.15s ease;
+}
+.react-flow__controls-button:hover {
+  background: rgba(111, 212, 160, 0.12) !important;
+  fill: var(--g600) !important;
+}
+
+.react-flow__minimap {
+  background: var(--surface-glass) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__edge-path {
+  filter: drop-shadow(0 0 3px rgba(111, 212, 160, 0.25));
+}
+
+.react-flow__node {
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45));
+}
+
+/* ============================================================
+   Accessibility — respects reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  body {
+    animation: none !important;
+    background-attachment: scroll;
+  }
+}
